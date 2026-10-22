@@ -21,6 +21,9 @@ export function downloadErrorMessage(error: unknown): string {
   if (/permission denied|EACCES|EPERM|Missing.*permission/i.test(text)) {
     return 'Não foi possível gravar na pasta do app. Feche e abra o app e tente novamente.';
   }
+  if (/EXTRACTION_BLOCKED|sign in to confirm|not a bot|cookies-from-browser|verificação de conta/i.test(text)) {
+    return 'O YouTube bloqueou o servidor e exigiu verificação de conta. Repetir agora não resolve: o backend precisa ser configurado.';
+  }
   const status = Number(text.match(/(?:HTTP(?:\s+Error)?\s*|status(?:\s+code)?\s*[:=]?\s*)(\d{3})/i)?.[1]);
   if ([401, 403, 404, 410].includes(status)) {
     return `O servidor recusou o download (HTTP ${status}). Tente novamente para preparar um novo link.`;

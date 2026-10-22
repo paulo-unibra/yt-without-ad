@@ -54,8 +54,10 @@ function createApp({ getVideoInfo = extractVideoInfo, getDownloadInfo = (id, opt
   function sendError(res, videoId, error, downloadId) {
     if (downloadId) logDownload('backend', videoId, downloadId, 'requisicao_falhou', downloadErrorDetails(error), 'error');
     else console.error(`❌ Stream ${videoId}: ${error.message}`);
+    // Registrado antes de qualquer encerramento para que a auditoria veja o motivo real.
+    res.locals.failure = { code: error.code || 'EXTRACTION_FAILED', message: error.detail || error.message };
     if (res.headersSent) { res.destroy(); return; }
-    res.status(error.code === 'EXTRACTION_BUSY' ? 503 : ['EXTRACTION_TIMEOUT', 'DOWNLOAD_TIMEOUT'].includes(error.code) ? 504 : error.code === 'DOWNLOAD_UNAVAILABLE' ? 422 : 502).json({
+    res.status(['EXTRACTION_BUSY', 'EXTRACTION_BLOCKED'].includes(error.code) ? 503 : ['EXTRACTION_TIMEOUT', 'DOWNLOAD_TIMEOUT'].includes(error.code) ? 504 : error.code === 'DOWNLOAD_UNAVAILABLE' ? 422 : 502).json({
       success: false,
       code: error.code || 'EXTRACTION_FAILED',
       error: error.message,
@@ -121,6 +123,7 @@ function createApp({ getVideoInfo = extractVideoInfo, getDownloadInfo = (id, opt
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);
     console.error('[API]', error.code || error.name || 'Error');
+    res.locals.failure = { code: error.code || error.name || 'Error', message: error.message };
     res.status(error.type === 'entity.too.large' ? 413 : error instanceof SyntaxError ? 400 : 500)
       .json({ error: 'Não foi possível processar a solicitação.' });
   });

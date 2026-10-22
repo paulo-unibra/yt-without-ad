@@ -92,6 +92,7 @@ function createDownloadRelay({ getDownloadInfo, fetchMedia = fetch, idleTimeoutM
       const progress = new Transform({
         transform(chunk, encoding, callback) {
           bytesSent += chunk.length;
+          if (res.locals) res.locals.bytesSent = bytesSent;
           if (Date.now() - lastProgressAt >= 5000) {
             lastProgressAt = Date.now();
             logDownload('backend', videoId, downloadId, 'progresso', { bytesSent, elapsedMs: Date.now() - startedAt });

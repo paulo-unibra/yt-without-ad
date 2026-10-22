@@ -98,8 +98,24 @@ function createAuthRoutes(store, origin) {
   function requireApi(req,res,next) {
     req.user=store.authenticate(bearer(req),'app');
     if(!req.user) return res.status(401).json({error:'Faça login.'});
+    const startedAt=Date.now();
+    // Guarda o motivo de qualquer resposta de erro, inclusive as devolvidas direto pelas rotas.
+    const json=res.json.bind(res);
+    res.json=body=>{
+      if(res.statusCode>=400 && typeof body?.error==='string') res.locals.failure??={code:body.code,message:body.error};
+      return json(body);
+    };
+    // 'close' também cobre a resposta destruída no meio do streaming, onde 'finish' nunca dispara.
+    res.once('close',()=>{
+      const {code,message}=res.locals.failure||{};
+      const detail=[req.originalUrl,res.statusCode,`${Date.now()-startedAt}ms`];
+      if(Number.isFinite(res.locals.bytesSent)) detail.push(`${res.locals.bytesSent}B`);
+      if(!res.writableFinished) detail.push('interrompido');
+      if(code) detail.push(code);
+      if(message) detail.push(message);
+      store.audit(req.user.id,`api_${req.method}_${res.statusCode}`,req.ip,detail.join(' · '));
+    });
     if(req.user.must_change) return res.status(403).json({error:'Altere sua senha temporária.',code:'PASSWORD_CHANGE_REQUIRED'});
-    res.once('finish',()=>{if(req.method!=='GET'||res.statusCode>=400) store.audit(req.user.id,`api_${req.method}_${res.statusCode}`,req.ip,req.path);});
     next();
   }
   // Erros de preenchimento voltam legíveis para quem enviou o formulário; o resto segue

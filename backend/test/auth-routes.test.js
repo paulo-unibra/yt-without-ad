@@ -60,6 +60,36 @@ test('formulário do admin aceita envio do próprio site e recusa origem externa
   assert.equal((await submit({Origin:'https://outro.example'})).status,403);
  } finally {server.closeAllConnections();await new Promise(r=>server.close(r));database.close();}
 });
+// A auditoria precisa mostrar o que aconteceu, não só que algo falhou.
+test('auditoria registra toda chamada da API com detalhe e o motivo real', async () => {
+ const database=new LibraryDatabase(':memory:');const store=new AuthStore(database.db);
+ const member=await store.createUser('member@example.test','temporary password 123');
+ database.db.prepare('UPDATE auth_users SET must_change=0 WHERE id=?').run(member);
+ const bruto='ERROR: [youtube] aqz-KE-bpKQ: Sign in to confirm you’re not a bot. Use --cookies-from-browser';
+ const blocked=Object.assign(new Error('O YouTube exigiu verificação de conta para este servidor.'),
+  {code:'EXTRACTION_BLOCKED',detail:bruto});
+ const server=createApp({database,authStore:store,getVideoInfo:async()=>{throw blocked;}}).listen(0,'127.0.0.1');
+ await once(server,'listening');
+ const base=`http://127.0.0.1:${server.address().port}`;
+ const headers={Authorization:`Bearer ${store.session(member,'app').token}`};
+ const rows=()=>database.db.prepare('SELECT action,target FROM audit_events ORDER BY id').all();
+ try {
+  assert.equal((await fetch(base+'/api/library/saved_videos',{headers})).status,200);
+  const sucesso=rows().at(-1);
+  // O GET bem-sucedido agora deixa rastro e fica atribuído ao usuário.
+  assert.equal(sucesso.action,'api_GET_200');
+  assert.match(sucesso.target,/^\/api\/library\/saved_videos · 200 · \d+ms$/);
+  assert.equal((await fetch(base+'/api/stream/aqz-KE-bpKQ',{headers})).status,503);
+  const bloqueio=rows().at(-1);
+  assert.equal(bloqueio.action,'api_GET_503');
+  assert.match(bloqueio.target,/EXTRACTION_BLOCKED/);
+  assert.match(bloqueio.target,/Sign in to confirm/); // a mensagem real, não a amigável
+  assert.equal((await fetch(base+'/api/library/inexistente',{headers})).status,404);
+  assert.match(rows().at(-1).target,/Coleção não encontrada/);
+  // Toda chamada ficou atribuída ao usuário autenticado.
+  assert.equal(database.db.prepare('SELECT COUNT(*) n FROM audit_events WHERE actor=?').get(member).n,rows().length);
+ } finally {server.closeAllConnections();await new Promise(r=>server.close(r));database.close();}
+});
 // Sem isto, qualquer recusa de validação virava um JSON genérico de erro 500 na tela.
 test('recusas de preenchimento explicam o motivo em vez de falha genérica', async () => {
  const database=new LibraryDatabase(':memory:');const store=new AuthStore(database.db);

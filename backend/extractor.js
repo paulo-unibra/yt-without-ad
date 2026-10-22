@@ -35,15 +35,22 @@ async function extractVideoInfo(videoId, { forDownload = false, audioFormat = 'b
   } catch (error) {
     const timedOut = (error.killed && error.signal === 'SIGKILL') || error.code === 'ETIMEDOUT';
     const unavailable = forDownload && /Requested format.*not available|No video formats found/i.test(error.stderr ?? '');
+    // O YouTube barra o IP do servidor e pede login. Repetir não adianta: depende de configuração.
+    const blocked = /sign in to confirm|not a bot|cookies-from-browser/i.test(error.stderr ?? '');
     const message = timedOut
       ? 'A extração do vídeo excedeu 30 segundos.'
       : unavailable
         ? 'Não há uma faixa de áudio compatível disponível para baixar.'
       : error.code === 'ENOENT'
         ? 'yt-dlp não encontrado. Execute npm ci na pasta backend.'
+      : blocked
+        ? 'O YouTube exigiu verificação de conta para este servidor. É preciso configurar um acesso autenticado no backend.'
         : error.stderr?.match(/ERROR:[^\n]+/g)?.at(-1) || 'O YouTube não forneceu um stream reproduzível.';
     const failure = new Error(message.slice(0, 500));
-    failure.code = timedOut ? 'EXTRACTION_TIMEOUT' : unavailable ? 'DOWNLOAD_UNAVAILABLE' : 'EXTRACTION_FAILED';
+    failure.code = timedOut ? 'EXTRACTION_TIMEOUT' : unavailable ? 'DOWNLOAD_UNAVAILABLE' : blocked ? 'EXTRACTION_BLOCKED' : 'EXTRACTION_FAILED';
+    // O texto bruto do yt-dlp não vai para o aplicativo, mas fica guardado para a auditoria.
+    const raw = error.stderr?.match(/ERROR:[^\n]+/g)?.at(-1);
+    if (raw && raw !== message) failure.detail = raw.slice(0, 500);
     if (forDownload) logDownload('backend', videoId, downloadId, 'extracao_falhou', { ...downloadErrorDetails(failure), processCode: error.code, signal: error.signal, elapsedMs: Date.now() - startedAt }, 'error');
     throw failure;
   } finally { extracting = false; }

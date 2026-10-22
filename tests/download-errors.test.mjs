@@ -24,6 +24,18 @@ test('distinguishes disk, permissions, network, timeout and backend failures', (
   ]) assert.match(downloadErrorMessage({ message: wrapper, cause: { message: detail } }), expected);
 });
 
+test('youtube bot check explains the block instead of leaking the yt-dlp hint', () => {
+  const raw = 'ERROR: [youtube] hJA9vnxwoHU: Sign in to confirm you’re not a bot. This helps protect our '
+    + 'community. Use --cookies-from-browser or --cookies for the authentication. See https://github.com/'
+    + 'yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp for how to manually pass cookies';
+  for (const error of [{ message: raw }, { message: 'falhou', code: 'EXTRACTION_BLOCKED' }]) {
+    const message = downloadErrorMessage(error);
+    assert.match(message, /bloqueou o servidor/);
+    assert.match(message, /Repetir agora não resolve/);
+    assert.doesNotMatch(message, /cookies|yt-dlp|bot/i);
+  }
+});
+
 test('generic native rejections and non-Error rejections get an actionable message', () => {
   assert.match(downloadErrorMessage(new Error(wrapper)), /backend aberto/);
   assert.match(downloadErrorMessage(null), /iniciar o download/);

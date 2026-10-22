@@ -35,7 +35,7 @@ class AuthStore {
   }
   audit(actor, action, ip, target = '') {
     this.db.prepare('DELETE FROM audit_events WHERE id <= (SELECT MAX(id)-100000 FROM audit_events)').run();
-    this.db.prepare('INSERT INTO audit_events(actor, action, ip, target) VALUES(?,?,?,?)').run(actor ?? null, action, ip, String(target).slice(0, 200));
+    this.db.prepare('INSERT INTO audit_events(actor, action, ip, target) VALUES(?,?,?,?)').run(actor ?? null, action, ip, String(target).slice(0, 400));
   }
   async createUser(email, password, role = 'member') {
     email = String(email).trim().toLowerCase();
