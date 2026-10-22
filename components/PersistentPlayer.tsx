@@ -23,6 +23,9 @@ import VideoCard from './VideoCard';
 import DownloadAction from './DownloadAction';
 import SavePlaylistAction from './SavePlaylistAction';
 import SearchBar from './SearchBar';
+import SleepTimer from './SleepTimer';
+import { useSleepTimer } from '../hooks/use-sleep-timer';
+import { formatSleepTime } from '../utils/sleep-timer';
 import { useDownloads } from '../hooks/use-downloads';
 import { downloadService, offlineSupported } from '../services/downloads';
 import { youtubeService } from '../services/youtube';
@@ -64,6 +67,8 @@ export default function PersistentPlayer({ id }: { id: string }) {
     leaveVideoRoute();
   }, [dragY, minimizeSession, leaveVideoRoute]);
   const close = () => { closeSession(); leaveVideoRoute(); };
+  const sleepTimer = useSleepTimer(close);
+  const checkSleepTimer = sleepTimer.check;
   const restore = () => router.push({ pathname: '/video/[id]', params: { id } });
   const drag = useMemo(() => PanResponder.create({
     onMoveShouldSetPanResponderCapture: (_event, gesture) => !minimized && shouldCaptureMiniPlayerDrag(gesture.dx, gesture.dy),
@@ -112,8 +117,8 @@ export default function PersistentPlayer({ id }: { id: string }) {
   });
 
   useEffect(() => {
-    if (nextVideo) playVideo(nextVideo.id);
-  }, [nextVideo, playVideo]);
+    if (nextVideo && !checkSleepTimer()) playVideo(nextVideo.id);
+  }, [nextVideo, playVideo, checkSleepTimer]);
 
   useEffect(() => {
     let active = true;
@@ -326,6 +331,7 @@ export default function PersistentPlayer({ id }: { id: string }) {
             </View>
           </View>
 
+          <SleepTimer {...sleepTimer} />
           <View style={styles.actionsContainer}>
             <TouchableOpacity style={styles.actionButton} onPress={handleToggleFavorite}>
               <Ionicons
@@ -407,7 +413,7 @@ export default function PersistentPlayer({ id }: { id: string }) {
           <Text style={styles.miniTitle} numberOfLines={1}>{video?.title ?? (loading ? 'Carregando...' : 'Vídeo indisponível')}</Text>
           <View style={styles.miniSubtitle}>
             <Ionicons name="chevron-up" size={16} color="#AAAAAA" />
-            <Text style={styles.miniChannel} numberOfLines={1}>{video?.channelTitle || 'Abrir vídeo'}</Text>
+            <Text style={styles.miniChannel} numberOfLines={1}>{sleepTimer.active ? `Sono · ${formatSleepTime(sleepTimer.remaining)}` : video?.channelTitle || 'Abrir vídeo'}</Text>
           </View>
         </TouchableOpacity>
         <TouchableOpacity style={styles.miniClose} onPress={close} accessibilityRole="button" accessibilityLabel="Encerrar reprodução">

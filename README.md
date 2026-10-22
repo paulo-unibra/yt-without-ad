@@ -309,3 +309,9 @@ O Expo Go não reproduz integralmente a abertura nativa personalizada. Para
 verificar o resultado final ao tocar no ícone do app, gere um novo build
 Android/iOS; a mudança do config plugin não atualiza APKs já compilados.
 A camada de carregamento do próprio app também mostra a logo no Expo Go e na web.
+
+### Temporizador de sono
+
+Na tela do vídeo, abra **Temporizador de sono** e escolha 15, 30, 60 ou 90 minutos, ou informe de 1 a 720 minutos. É possível alterar ou cancelar a contagem. O prazo continua ao navegar, minimizar, pausar ou trocar de vídeo; o mini player mostra o tempo restante. Ao expirar, a sessão é encerrada, parando também a reprodução automática. Fechar o player cancela o temporizador.
+
+A contagem usa um horário absoluto e confere o prazo ao retornar do segundo plano. Como o temporizador é executado em JavaScript, o sistema pode atrasar a parada se suspender o app; a precisão com tela bloqueada precisa ser validada no APK instalado.
