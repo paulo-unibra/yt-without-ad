@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import { useEffect } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,13 +7,20 @@ import PersistentPlayer from '../components/PersistentPlayer';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { migrateSavedLibrary } from '../services/database';
+import * as SplashScreen from 'expo-splash-screen';
+import { StartupProvider, useCompleteStartup } from '../contexts/startup';
+
+void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 export default function RootLayout() {
   useEffect(() => { void migrateSavedLibrary(); }, []);
-  return <SafeAreaProvider><PlaybackSessionProvider><RootNavigation /></PlaybackSessionProvider></SafeAreaProvider>;
+  return <SafeAreaProvider><StartupProvider><PlaybackSessionProvider><RootNavigation /></PlaybackSessionProvider></StartupProvider></SafeAreaProvider>;
 }
 
 function RootNavigation() {
+  const pathname = usePathname();
+  const completeStartup = useCompleteStartup();
+  useEffect(() => { if (pathname !== '/') completeStartup(); }, [pathname, completeStartup]);
   const session = usePlaybackSession();
   const insets = useSafeAreaInsets();
   return (

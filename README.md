@@ -295,3 +295,17 @@ tenta novamente e pula os concluídos; veja as causas em **Downloads**.
 Após desinstalar, os títulos continuam no servidor, mas os arquivos locais
 precisam ser baixados novamente. O bloqueio antibot do YouTube detectado no IP
 do servidor ainda pode impedir downloads, inclusive os da fila.
+
+
+## Logo na abertura
+
+O app usa o arquivo original `assets/images/logo-yt.png` na abertura nativa e
+no carregamento inicial. A imagem fica centralizada sobre o fundo escuro, sem
+corte ou distorção. A lista de salvos carrega em paralelo; ao concluir ou
+retornar uma falha, a tela de abertura sai e libera o conteúdo ou a tentativa
+de reconexão. Atualizar as listas depois disso não reabre a tela de abertura.
+
+O Expo Go não reproduz integralmente a abertura nativa personalizada. Para
+verificar o resultado final ao tocar no ícone do app, gere um novo build
+Android/iOS; a mudança do config plugin não atualiza APKs já compilados.
+A camada de carregamento do próprio app também mostra a logo no Expo Go e na web.

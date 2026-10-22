@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, SectionList, StyleSheet, RefreshControl, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,8 @@ import { Video } from '../types/video';
 import { HomeFeed, loadHomeFeed, unseenVideos } from '../utils/home-feed';
 import { useSavedVideos } from '../hooks/use-saved-videos';
 import BatchDownloadAction from '../components/BatchDownloadAction';
+import AppLoadingScreen from '../components/AppLoadingScreen';
+import { useCompleteStartup } from '../contexts/startup';
 
 const initialFeed: HomeFeed = {
   personalized: [], popular: [], hasHistory: false,
@@ -18,6 +20,8 @@ const initialFeed: HomeFeed = {
 export default function Home() {
   const router = useRouter();
   const saved = useSavedVideos();
+  const completeStartup = useCompleteStartup();
+  useEffect(() => { if (!saved.loading) completeStartup(); }, [saved.loading, completeStartup]);
   const [feed, setFeed] = useState(initialFeed);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -140,10 +144,7 @@ export default function Home() {
       </View>
 
       {loading && !hasLoaded && saved.loading && !saved.items.length ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color="#FFFFFF" accessibilityLabel="Carregando vídeos" />
-          <Text style={styles.message}>Carregando vídeos...</Text>
-        </View>
+        <AppLoadingScreen />
       ) : (
         <SectionList
           sections={sections}
@@ -206,7 +207,6 @@ const styles = StyleSheet.create({
   sectionTitle: { color: '#FFFFFF', fontSize: 22, fontWeight: '700' },
   description: { color: '#AAAAAA', fontSize: 14, lineHeight: 21 },
   message: { color: '#AAAAAA', fontSize: 14, lineHeight: 21 },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
   sectionEmpty: { paddingHorizontal: 16, paddingBottom: 24, alignItems: 'flex-start', gap: 12 },
   retryButton: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 16, borderWidth: 1, borderColor: '#555555', borderRadius: 8 },
   retryText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },

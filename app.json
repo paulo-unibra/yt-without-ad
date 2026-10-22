@@ -44,12 +44,13 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/images/logo-yt.png",
+          "imageWidth": 240,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#0F0F0F",
           "dark": {
-            "backgroundColor": "#000000"
+            "image": "./assets/images/logo-yt.png",
+            "backgroundColor": "#0F0F0F"
           }
         }
       ],
