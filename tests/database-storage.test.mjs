@@ -34,6 +34,17 @@ test('server data takes precedence over older legacy data', async () => {
   documents.set('favorites', { value: ['new'], revision: 2 });
   assert.equal(await storage.getItem('@favorites'), '["new"]');
 });
+
+test('switching to an empty production database migrates the newest local cache', async () => {
+  const { storage, local, documents, ports } = fixture();
+  local.set('@favorites', '["legacy"]');
+  await storage.getItem('@favorites');
+  await storage.setItem('@favorites', '["latest"]');
+  documents.clear(); // O servidor de produção ainda não tem a biblioteca deste aparelho.
+  const restarted = new DatabaseStorage(ports);
+  assert.equal(await restarted.getItem('@favorites'), '["latest"]');
+  assert.deepEqual(documents.get('favorites'), { value: ['latest'], revision: 1 });
+});
 test('reads saved playlists offline after restart and never reports an offline write as saved', async () => {
   const { storage, ports, state, documents } = fixture();
   await storage.setItem('@favorites', '["saved"]');

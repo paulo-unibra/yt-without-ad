@@ -42,9 +42,11 @@ export class DatabaseStorage {
     const cached = await this.cached(key);
     try {
       let document = await this.ports.get(key);
-      if (document.value === null && cached === null) {
-        const legacy = await this.ports.readLocal(`@${key}`);
-        if (legacy !== null) document = await this.ports.put(key, JSON.parse(legacy), document.revision);
+      if (document.value === null) {
+        // Ao trocar o backend local pelo servidor, o cache pode ser mais recente
+        // que os dados antigos do AsyncStorage. Migre-o antes de substituí-lo.
+        const existing = cached?.raw ?? await this.ports.readLocal(`@${key}`);
+        if (existing !== null) document = await this.ports.put(key, JSON.parse(existing), document.revision);
       }
       return await this.remember(key, document);
     } catch (error) {

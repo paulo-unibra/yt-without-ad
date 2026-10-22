@@ -7,7 +7,7 @@ O aplicativo Expo é compilado e distribuído separadamente.
 
 O serviço `yt-without-ad.service` executa com o usuário `yt-api`, Node.js 24,
 Python 3 e `yt-dlp`. Escuta apenas `127.0.0.1:3011`; Apache encaminha o endereço
-público escolhido. A configuração fica em `/etc/yt-without-ad/backend.env`:
+`https://youtubeapi.bibliafoco.com.br`. A configuração fica em `/etc/yt-without-ad/backend.env`:
 
 ```dotenv
 NODE_ENV=production
@@ -19,8 +19,7 @@ DATABASE_PATH=/var/lib/yt-without-ad/library.sqlite
 
 O banco e os backups ficam fora das pastas de versões. Não altere os bancos,
 certificados ou serviços das outras aplicações presentes neste servidor.
-`dividasapi.bibliafoco.com.br` já atende uma API de dívidas; usar esse domínio
-para o YT exige uma decisão explícita sobre nova rota ou substituição.
+`dividasapi.bibliafoco.com.br` atende a API de dívidas e permanece separado do YT.
 
 ## Deploy automático
 
@@ -71,17 +70,32 @@ systemctl list-timers yt-without-ad-backup.timer
 systemctl start yt-without-ad-backup.service
 ```
 
-O timer executa backup diário às 03:20 UTC, verifica a integridade e retém sete
+O timer executa backup diário às 00:20 de Recife (03:20 UTC), verifica a integridade e retém sete
 cópias em `/var/lib/yt-without-ad/backups`. Essas cópias estão no mesmo servidor.
 Para restaurar: pare o serviço, preserve uma cópia do banco atual e seus arquivos
 `-wal`/`-shm`, substitua o banco por um backup verificado com dono `yt-api` e
 permissão `600`, remova apenas os sidecars antigos já preservados e inicie o serviço.
 
-O HTTPS deve ser terminado no Apache com certificado Let's Encrypt válido e
-renovação via `certbot.timer`. A configuração pública depende do domínio/rota
-escolhido; verifique a API existente antes de alterar um VirtualHost.
+O HTTPS termina no Apache em `youtubeapi.bibliafoco.com.br`, com certificado
+Let's Encrypt e renovação automática via `certbot.timer`. Os VirtualHosts estão
+versionados em `deploy/youtubeapi-http.conf` e `deploy/youtubeapi-ssl.conf`.
+O HTTP redireciona para HTTPS, exceto o caminho ACME em `/var/www/yt-acme`.
+O certificado é solicitado com `certbot certonly --webroot -w /var/www/yt-acme
+-d youtubeapi.bibliafoco.com.br --non-interactive`. O hook exclusivo
+`/etc/letsencrypt/renewal-hooks/deploy/yt-apache-reload` valida e recarrega o
+Apache quando esse certificado é renovado. Os VirtualHosts são instalados
+administrativamente; o deploy da API não os modifica.
 
-No app, defina `EXPO_PUBLIC_BACKEND_URL` com a URL HTTPS final e
+No app, `.env.production` define `EXPO_PUBLIC_BACKEND_URL` com a URL HTTPS de produção.
+Em desenvolvimento, `.env.local` pode selecionar a mesma URL ou o backend local. Configure
 `EXPO_PUBLIC_YOUTUBE_API_KEY` com a chave da YouTube Data API. A chave do YouTube
 é pública no bundle Expo: restrinja seu uso no Google Cloud. Recompile builds
 nativos para incluir `expo-crypto` e `expo-secure-store`.
+
+## Extração do YouTube no servidor
+
+O teste real de extração no IP `146.190.138.248` recebeu uma exigência de login e
+verificação antibot do YouTube. O deploy, o HTTPS e o banco não removem essa
+restrição. Os logs da API registram a causa; downloads ainda dependem de uma
+solução para esse bloqueio. O player incorporado permanece como alternativa
+para reprodução.

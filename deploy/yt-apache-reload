@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+if [ "${RENEWED_LINEAGE:-}" = /etc/letsencrypt/live/youtubeapi.bibliafoco.com.br ]; then
+    /usr/sbin/apache2ctl configtest
+    /usr/bin/systemctl reload apache2
+fi

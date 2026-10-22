@@ -49,10 +49,12 @@ mesma rede. O backend requer Python 3.10+ e instala seu próprio `yt-dlp` pelo n
 Para outro servidor, Expo com túnel ou um build instalado, configure `.env.local`:
 
 ```dotenv
-EXPO_PUBLIC_BACKEND_URL=http://192.168.1.15:3001
+EXPO_PUBLIC_BACKEND_URL=https://youtubeapi.bibliafoco.com.br
 ```
 
-Use o endereço mostrado pelo backend ao iniciar e recarregue completamente o
+A produção usa `https://youtubeapi.bibliafoco.com.br`, também definido em
+`.env.production`. Para testar o backend local, use o endereço mostrado ao iniciar.
+Recarregue completamente o
 app após alterar a variável. No emulador Android, o endereço do computador é
 `http://10.0.2.2:3001`. Consulte [backend/README.md](backend/README.md) para os
 endpoints e diagnóstico.

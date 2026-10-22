@@ -31,7 +31,9 @@ jobs:
     needs: validate
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: production
+    environment:
+      name: production
+      url: https://youtubeapi.bibliafoco.com.br
     steps:
       - name: Instalar chave e verificar identidade do servidor
         env:
@@ -44,6 +46,11 @@ jobs:
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
       - name: Publicar versão validada
         run: ssh -i ~/.ssh/yt-deploy -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 yt-deploy@146.190.138.248 "$GITHUB_SHA"
+      - name: Verificar HTTPS e banco da versão publicada
+        run: |
+          curl --fail --silent --show-error --connect-timeout 10 --max-time 20 --retry 3 --retry-delay 3 \
+            https://youtubeapi.bibliafoco.com.br/ \
+            | python3 -c 'import json,sys; health=json.load(sys.stdin); assert health.get("status")=="ok" and health.get("database")=="ok" and health.get("release")==sys.argv[1], health; print("HTTPS, banco e versão validados.")' "$GITHUB_SHA"
       - name: Remover chave do runner
         if: always()
         run: rm -f ~/.ssh/yt-deploy
