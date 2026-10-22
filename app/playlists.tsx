@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import VideoCard from '../components/VideoCard';
 import { usePlaylists } from '../hooks/use-playlists';
 import { playlistService } from '../services/playlists';
+import BatchDownloadAction from '../components/BatchDownloadAction';
 
 export default function PlaylistsScreen() {
   const { items, loading, error, refresh } = usePlaylists();
@@ -25,6 +26,7 @@ export default function PlaylistsScreen() {
       ListHeaderComponent={<View style={styles.heading}>
         <Text style={styles.title}>{selected.name}</Text>
         <Text style={styles.subtitle}>{selected.videos.length} {selected.videos.length === 1 ? 'vídeo' : 'vídeos'} · Para ouvir sem internet, baixe o áudio.</Text>
+        {selected.videos.length > 0 && <BatchDownloadAction videos={selected.videos} title={selected.name} />}
         {actionError && <Text style={styles.subtitle} accessibilityLiveRegion="polite">{actionError}</Text>}
       </View>}
       ListEmptyComponent={<Text style={styles.subtitle}>Nenhum vídeo nesta playlist. Use Salvar na tela de um vídeo para adicionar.</Text>}
@@ -39,7 +41,9 @@ export default function PlaylistsScreen() {
 
   return <View style={styles.container}>
     <FlatList data={items} keyExtractor={(playlist) => playlist.id} contentContainerStyle={styles.content}
-      ListHeaderComponent={<View style={styles.heading}><Text style={styles.title}>Suas playlists</Text><Text style={styles.subtitle}>Organize os vídeos que você quer ouvir.</Text></View>}
+      ListHeaderComponent={<View style={styles.heading}><Text style={styles.title}>Suas playlists</Text><Text style={styles.subtitle}>Suas listas aparecem aqui, inclusive após reinstalar o app.</Text>
+        {items.some(item => item.videos.length) && <BatchDownloadAction videos={items.flatMap(item => item.videos)} title="Todas as playlists" />}
+      </View>}
       ListEmptyComponent={<View style={styles.empty}><Ionicons name="list-outline" size={48} color="#AAAAAA" /><Text style={styles.text}>Nenhuma playlist ainda</Text><Text style={styles.subtitle}>Abra um vídeo, toque em Salvar e escolha um nome para sua primeira playlist.</Text></View>}
       renderItem={({ item }) => <TouchableOpacity style={styles.playlistRow} onPress={() => setSelectedId(item.id)} accessibilityRole="button" accessibilityLabel={`Abrir playlist ${item.name}`}>
         <Ionicons name="list-outline" size={28} color="#FFFFFF" />

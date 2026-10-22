@@ -13,6 +13,16 @@ const deferred = () => {
   return { promise, resolve, reject };
 };
 
+test('remembers a video before transfer and keeps its catalog entry when extraction fails', async () => {
+  const { library, ports, state } = fixture();
+  const remembered = [];
+  ports.remember = async video => { assert.equal(state.resolveCalls, 0); remembered.push(video); };
+  ports.resolveSource = async () => { throw new Error('O YouTube bloqueou a extração.'); };
+  assert.equal(await library.start(video), null);
+  assert.deepEqual(remembered, [video]);
+  assert.deepEqual(state.stored, []);
+});
+
 function fixture() {
   const state = { stored: [], files: new Map(), partial: new Map(), resolveCalls: 0, writes: 0, initCalls: 0, failWrite: false, failDelete: false };
   const ports = {

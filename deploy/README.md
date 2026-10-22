@@ -42,23 +42,37 @@ instale a chave pública exclusiva em `/var/lib/yt-deploy/.ssh/authorized_keys`
 com `restrict,command="/usr/local/bin/yt-without-ad-deploy"` e configure os secrets.
 O servidor exige Node.js 24, npm, Python 3, curl, tar, sudo e systemd instalados.
 
-## Banco e identificação
+## Biblioteca compartilhada, sem login
 
-A API guarda os documentos `playlists`, `favorites`, `downloaded_videos`,
-`watch_history` e `search_history` em SQLite com WAL e revisões para impedir que
-uma cópia antiga apague dados novos. Cada instalação cria um token aleatório de
-256 bits. O banco guarda somente seu hash; o token fica no SecureStore nativo
-ou no armazenamento da origem web. Requests usam `Authorization: Bearer TOKEN`.
-Não coloque esse token em `.env`, URLs ou logs.
+O app usa uma biblioteca única em `shared_library_documents`, sem usuário,
+conta, token ou vínculo com a instalação. A API permite ler e atualizar essa
+biblioteca sem autenticação, conforme o uso com um único usuário. Outra
+instalação abre os mesmos títulos, playlists, favoritos e históricos ao conectar.
 
-Ainda não existe login de conta ou sincronização entre aparelhos. Outra
-instalação recebe uma biblioteca independente; a perda do token impede acessar
-a biblioteca antiga. Os arquivos de áudio permanecem no aparelho; o banco
-guarda seus dados e a referência local, sem transferir arquivos de mídia para o disco do servidor.
+Os documentos são `playlists`, `favorites`, `saved_videos`, `watch_history`,
+`search_history` e o índice antigo `downloaded_videos`, mantido para compatibilidade.
+O catálogo `saved_videos` reúne os vídeos de playlists, favoritos e downloads.
+Salvar em uma playlist ou nos favoritos também atualiza esse catálogo na mesma
+transação. Remover o download local não apaga o título salvo no servidor.
 
-O app migra os registros antigos do AsyncStorage ao conectar e preserva a cópia
-antiga. Leituras offline usam o cache. Novas alterações precisam da confirmação
-do banco; falhas não são apresentadas como um salvamento concluído.
+Na primeira inicialização desta versão, uma migração transacional reúne as
+bibliotecas antigas por instalação, preserva os vídeos sem duplicação por ID e
+mantém a tabela antiga como arquivo. A migração executa uma vez; reiniciar o
+serviço não restaura itens removidos depois dela. Revisões continuam impedindo
+que gravações antigas substituam dados mais recentes.
+
+O app mostra **Vídeos salvos** na tela inicial. Após reinstalar, basta ter
+internet para recuperar a lista. Os arquivos de áudio permanecem somente no
+aparelho e precisam ser baixados novamente. O índice de arquivos disponíveis
+fica exclusivamente no AsyncStorage local `@device_downloads_v2`; não é enviado
+como uma lista global de arquivos presentes. Isso impede que um aparelho vazio
+apague os registros do servidor durante a restauração.
+
+**Baixar todos os áudios** inicia uma fila sequencial, pula os arquivos já
+presentes e mostra progresso, falhas e cancelamento. A fila continua durante a
+navegação no app, exige mantê-lo aberto e não reinicia sozinha após encerrar o
+processo. Tentar novamente pula os arquivos concluídos. O bloqueio do YouTube
+no IP do servidor ainda pode impedir as transferências.
 
 ## Logs, saúde e backup
 

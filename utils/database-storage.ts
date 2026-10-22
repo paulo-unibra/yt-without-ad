@@ -53,7 +53,9 @@ export class DatabaseStorage {
       if (!this.ports.isUnavailable(error)) throw error;
       if (cached !== null) return cached;
       // Preserva a biblioteca antiga enquanto aguarda a primeira conexão.
-      return { raw: await this.ports.readLocal(`@${key}`), revision: 0 };
+      const legacy = await this.ports.readLocal(`@${key}`);
+      if (legacy !== null) return { raw: legacy, revision: 0 };
+      throw error;
     }
   }
   getItem(key: string): Promise<string | null> {

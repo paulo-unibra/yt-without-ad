@@ -1,11 +1,16 @@
-import { databaseStorage } from './database';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Directory, DownloadTask, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
-import { DownloadLibrary, isAudioHeader, parseDownloads } from '../utils/download-library';
+import { DownloadLibrary, isAudioHeader } from '../utils/download-library';
+import { deviceDownloadStorage } from '../utils/device-downloads';
+import { savedVideoService } from './saved-videos';
 import { logDownload } from '../utils/download-diagnostics';
 import { youtubeService } from './youtube';
 
-const KEY = '@downloaded_videos';
+const deviceStorage = deviceDownloadStorage({
+  read: key => AsyncStorage.getItem(key),
+  write: (key, raw) => AsyncStorage.setItem(key, raw),
+});
 export const offlineSupported = Platform.OS === 'android' || Platform.OS === 'ios';
 
 function directory() { return new Directory(Paths.document, 'offline-videos'); }
@@ -19,9 +24,10 @@ function savedFile(id: string) {
 }
 
 export const downloadService = new DownloadLibrary({
-  read: async () => offlineSupported ? parseDownloads(await databaseStorage.getItem(KEY)) : [],
+  remember: video => savedVideoService.save(video),
+  read: async () => offlineSupported ? deviceStorage.read() : [],
   write: async (items) => {
-    if (offlineSupported) await databaseStorage.setItem(KEY, JSON.stringify(items));
+    if (offlineSupported) await deviceStorage.write(items);
   },
   initialize: async (knownIds) => {
     if (!offlineSupported) return;

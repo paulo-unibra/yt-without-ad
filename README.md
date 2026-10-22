@@ -34,7 +34,6 @@ Para compilar o aplicativo nativo localmente, use `npx expo run:android` ou
 `npx expo run:ios` (macOS com Xcode 27 ou superior).
 
 Configure `EXPO_PUBLIC_YOUTUBE_API_KEY` em `.env.local` com a chave da YouTube Data API.
-Recompile o app nativo após instalar `expo-crypto` e `expo-secure-store`.
 A operação do servidor e do deploy está descrita em [deploy/README.md](deploy/README.md).
 Para usar o backend de streams, execute em outro terminal:
 
@@ -77,8 +76,8 @@ minutos. Falhas em uma fonte preservam as demais; use **Tentar novamente** ou
 **Carregar mais vídeos** quando esses controles aparecerem.
 
 O histórico fica no banco do backend, com cache no aparelho, sem leitura do
-histórico da conta Google/YouTube. A biblioteca é identificada por instalação;
-ainda não existe login nem sincronização entre aparelhos. A busca de sugestões requer internet e uma
+histórico da conta Google/YouTube. A biblioteca é única, sem login ou vínculo com a instalação, e reaparece
+ao conectar após reinstalar o app. A busca de sugestões requer internet e uma
 chave válida da YouTube Data API: consultas por artista/assunto, gênero, categoria e canal são enviadas
 à API do Google. Essa seleção é feita pelo app e não corresponde ao algoritmo
 oficial do YouTube. O recurso consulta a YouTube Data API e o histórico salvo no backend.
@@ -278,3 +277,21 @@ Após gerar o build, confira em dispositivo: pesquisa, favoritos, reprodução,
 pausa, saltos de 10 segundos, troca de vídeo, retorno da tela e áudio em segundo
 plano. A obtenção dos streams depende do backend e das APIs externas; quando
 indisponível, o aplicativo tenta usar o player incorporado do YouTube.
+
+
+## Recuperar salvos e baixar em fila
+
+**Vídeos salvos** aparece no início da tela principal e recupera os títulos do
+banco automaticamente, sem login. A biblioteca é compartilhada por todas as
+instalações deste app. Playlists e favoritos existentes são migrados no servidor.
+
+Use **Baixar todos os áudios** na tela inicial ou em uma playlist para baixar
+um áudio por vez, sempre na melhor qualidade compatível. Arquivos já presentes
+são pulados. Acompanhe a contagem, o áudio atual e as falhas; **Cancelar fila**
+interrompe o atual e preserva os concluídos. A fila continua ao navegar entre
+as telas. Mantenha o app aberto. Se houver falhas, **Baixar os que faltam**
+tenta novamente e pula os concluídos; veja as causas em **Downloads**.
+
+Após desinstalar, os títulos continuam no servidor, mas os arquivos locais
+precisam ser baixados novamente. O bloqueio antibot do YouTube detectado no IP
+do servidor ainda pode impedir downloads, inclusive os da fila.

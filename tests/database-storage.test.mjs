@@ -71,3 +71,9 @@ test('cache failure after a database commit does not falsely report that the com
   await storage.setItem('@favorites', '[]');
   assert.deepEqual(documents.get('favorites'), { value: [], revision: 1 });
 });
+
+test('a fresh offline installation reports a load failure instead of presenting an empty server library', async () => {
+  const { storage, state } = fixture();
+  state.offline = true;
+  await assert.rejects(storage.getItem('@saved_videos'), /offline/);
+});

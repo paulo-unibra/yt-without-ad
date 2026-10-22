@@ -19,6 +19,7 @@ export interface DownloadSnapshot {
 
 interface LocalFile { uri: string; size: number }
 export interface DownloadPorts {
+  remember?(video: Video): Promise<void>;
   read(): Promise<DownloadedVideo[]>;
   write(items: DownloadedVideo[]): Promise<void>;
   initialize(knownIds: string[]): Promise<void>;
@@ -180,6 +181,8 @@ export class DownloadLibrary {
         logDownload('app', video.id, downloadId, 'ja_disponivel_offline', { bytes: existing.fileSize });
         return existing;
       }
+      if (signal.aborted) return null;
+      await this.ports.remember?.(video);
       if (signal.aborted) return null;
       stage = 'preparacao';
       logDownload('app', video.id, downloadId, 'preparando_fonte');

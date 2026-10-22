@@ -76,6 +76,7 @@ const styles = StyleSheet.create({
   },
   compactThumbnail: {
     width: '40%',
+    maxWidth: 160,
     borderRadius: 8,
     alignSelf: 'flex-start',
   },

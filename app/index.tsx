@@ -7,6 +7,8 @@ import { youtubeService } from '../services/youtube';
 import { storageService } from '../services/storage';
 import { Video } from '../types/video';
 import { HomeFeed, loadHomeFeed, unseenVideos } from '../utils/home-feed';
+import { useSavedVideos } from '../hooks/use-saved-videos';
+import BatchDownloadAction from '../components/BatchDownloadAction';
 
 const initialFeed: HomeFeed = {
   personalized: [], popular: [], hasHistory: false,
@@ -15,6 +17,7 @@ const initialFeed: HomeFeed = {
 
 export default function Home() {
   const router = useRouter();
+  const saved = useSavedVideos();
   const [feed, setFeed] = useState(initialFeed);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -95,8 +98,9 @@ export default function Home() {
     }
   };
 
-  const retryFeed = () => { void reload(true, true); };
+  const retryFeed = () => { void saved.refresh(); void reload(true, true); };
   const sections: { key: string; title: string; description: string; data: Video[]; error: boolean }[] = [
+    { key: 'saved', title: 'Vídeos salvos', description: 'Sua lista é recuperada automaticamente, sem login.', data: saved.items, error: saved.error },
     ...(feed.hasHistory ? [{
       key: 'personalized', title: 'Para você',
       description: 'Com base no que você assistiu neste app.',
@@ -135,7 +139,7 @@ export default function Home() {
         </TouchableOpacity>
       </View>
 
-      {loading && !hasLoaded ? (
+      {loading && !hasLoaded && saved.loading && !saved.items.length ? (
         <View style={styles.loading}>
           <ActivityIndicator color="#FFFFFF" accessibilityLabel="Carregando vídeos" />
           <Text style={styles.message}>Carregando vídeos...</Text>
@@ -144,25 +148,29 @@ export default function Home() {
         <SectionList
           sections={sections}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <VideoCard video={item} />}
+          renderItem={({ item, section }) => <View style={section.key === 'saved' ? styles.savedRow : undefined}><VideoCard video={item} compact={section.key === 'saved'} /></View>}
           stickySectionHeadersEnabled={false}
           renderSectionHeader={({ section }) => (
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle} accessibilityRole="header">{section.title}</Text>
               <Text style={styles.description}>{section.description}</Text>
+              {section.key === 'saved' && saved.items.length > 0 && <BatchDownloadAction videos={saved.items} title="Vídeos salvos" />}
             </View>
           )}
           renderSectionFooter={({ section }) => section.data.length === 0 ? (
             <View style={styles.sectionEmpty}>
+              {(section.key === 'saved' ? saved.loading : loading) ? <ActivityIndicator color="#FFFFFF" accessibilityLabel={`Carregando ${section.title}`} /> : <>
               <Text style={styles.message} accessibilityLiveRegion="polite">
                 {section.error ? 'Não foi possível carregar estes vídeos. Verifique sua conexão.'
+                  : section.key === 'saved' ? 'Salve um vídeo em uma playlist ou nos favoritos para encontrá-lo aqui.'
                   : section.key === 'personalized' ? 'Ainda não encontramos novas sugestões para o seu histórico.'
                     : 'Nenhum vídeo disponível no momento.'}
               </Text>
-              <TouchableOpacity style={styles.retryButton} onPress={retryFeed} disabled={loading}
+              {(section.key !== 'saved' || section.error) && <TouchableOpacity style={styles.retryButton} onPress={section.key === 'saved' ? () => { void saved.refresh(); } : retryFeed} disabled={section.key === 'saved' ? saved.loading : loading}
                 accessibilityRole="button" accessibilityLabel={`Tentar novamente: ${section.title}`}>
                 <Text style={styles.retryText}>{loading ? 'Atualizando...' : 'Tentar novamente'}</Text>
-              </TouchableOpacity>
+              </TouchableOpacity>}
+              </>}
             </View>
           ) : null}
           refreshControl={<RefreshControl refreshing={refreshing || loading} onRefresh={retryFeed} tintColor="#FF0000" />}
@@ -185,6 +193,7 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
+  savedRow: { paddingHorizontal: 16 },
   offlineButton: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48, marginRight: 'auto' },
   offlineLabel: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
   container: { flex: 1, backgroundColor: '#0F0F0F' },

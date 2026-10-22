@@ -117,15 +117,16 @@ Referências: [youtube-dl-exec](https://github.com/microlinkhq/youtube-dl-exec),
 
 Ao iniciar com `npm start`, o backend abre o SQLite em `DATABASE_PATH`
 (padrão `backend/data/library.sqlite`). As rotas `GET/PUT /api/library/:key`
-aceitam `playlists`, `favorites`, `downloaded_videos`, `watch_history` e
-`search_history`. Exigem `Authorization: Bearer` com o token privado de 64
-caracteres hexadecimais da instalação. O corpo do PUT é `{ value: [], revision: 0 }`;
+aceitam `playlists`, `favorites`, `saved_videos`, `downloaded_videos`,
+`watch_history` e `search_history`. A biblioteca é única e não exige login nem
+token por instalação. O corpo do PUT é `{ value: [], revision: 0 }`;
 a resposta traz os dados e a nova revisão. Revisão antiga retorna HTTP 409.
-Não use uma credencial compartilhada entre todos os aparelhos.
 
-O app migra a biblioteca local ao conectar, mantém cache para leitura offline
-e confirma alterações somente após o banco persistir. Os arquivos de áudio
-permanecem no aparelho. Não há login nem recuperação entre instalações ainda.
+A migração reúne os documentos antigos de cada instalação em uma tabela
+compartilhada e mantém os originais arquivados. Salvar playlists, favoritos ou
+metadados de downloads também preserva os títulos no catálogo `saved_videos`.
+A reinstalação do app recupera a lista pela API. Os arquivos e seu índice de
+disponibilidade permanecem locais; um aparelho sem arquivos não esvazia o catálogo.
 
 Consulte [deploy/README.md](../deploy/README.md) para ambiente, serviço isolado,
 GitHub Actions, backup e configuração do proxy HTTPS.
