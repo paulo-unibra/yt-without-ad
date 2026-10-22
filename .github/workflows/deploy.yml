@@ -1,0 +1,48 @@
+name: Validar e publicar API
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: production-api
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm ci --prefix backend --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npx expo export --platform web --output-dir /tmp/yt-web
+  deploy:
+    needs: validate
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Instalar chave e verificar identidade do servidor
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/yt-deploy
+          chmod 600 ~/.ssh/yt-deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Publicar versão validada
+        run: ssh -i ~/.ssh/yt-deploy -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 yt-deploy@146.190.138.248 "$GITHUB_SHA"
+      - name: Remover chave do runner
+        if: always()
+        run: rm -f ~/.ssh/yt-deploy

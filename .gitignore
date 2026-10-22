@@ -26,12 +26,26 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 
+# Dumps gerados pelo extrator antigo do backend
+backend/*-player-script.js
+
+# Capturas locais de revisão da interface
+.impeccable/review/
+
 # macOS
 .DS_Store
 *.pem
 
 # local env files
 .env*.local
+.env
+backend/.env
+backend/data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+__pycache__/
+*.pyc
 
 # typescript
 *.tsbuildinfo

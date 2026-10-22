@@ -1,0 +1,28 @@
+[Unit]
+Description=YT Without Ads API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=yt-api
+Group=yt-api
+WorkingDirectory=/opt/yt-without-ad/current/backend
+EnvironmentFile=/etc/yt-without-ad/backend.env
+EnvironmentFile=/opt/yt-without-ad/release.env
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/yt-without-ad
+MemoryMax=240M
+TasksMax=32
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

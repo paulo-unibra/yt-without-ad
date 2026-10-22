@@ -1,0 +1,15 @@
+[Unit]
+Description=Backup do banco YT Without Ads
+After=yt-without-ad.service
+
+[Service]
+Type=oneshot
+User=yt-api
+Group=yt-api
+UMask=0077
+ExecStart=/usr/bin/python3 /opt/yt-without-ad/current/deploy/backup-library.py
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/yt-without-ad/backups
