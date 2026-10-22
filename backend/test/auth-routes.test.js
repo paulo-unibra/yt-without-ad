@@ -36,3 +36,27 @@ test('rotas protegidas, troca obrigatória, CSRF, papéis e revogação', async 
   assert.equal((await fetch(base+'/api/library/saved_videos',{headers:authorized})).status,401);
  } finally {server.closeAllConnections();await new Promise(r=>server.close(r));database.close();}
 });
+// Navegadores enviam `Origin: null` em POST de navegação quando a página tem Referrer-Policy
+// restritiva, então o painel precisa aceitar Sec-Fetch-Site e recusar envios de outros sites.
+test('formulário do admin aceita envio do próprio site e recusa origem externa', async () => {
+ const database=new LibraryDatabase(':memory:');const store=new AuthStore(database.db);
+ await store.createUser('admin@example.test','temporary password 123','admin');
+ const server=createApp({database,authStore:store}).listen(0,'127.0.0.1');await once(server,'listening');
+ const base=`http://127.0.0.1:${server.address().port}`;
+ const submit=headers=>fetch(base+'/admin/login',{method:'POST',redirect:'manual',
+  headers:{'Content-Type':'application/x-www-form-urlencoded',...headers},
+  body:new URLSearchParams({email:'admin@example.test',password:'temporary password 123'})});
+ try {
+  const form=await fetch(base+'/admin/login');
+  assert.equal(form.headers.get('referrer-policy'),'same-origin');
+  // Envio real do navegador: Origin vira `null`, mas Sec-Fetch-Site comprova o mesmo site.
+  const browser=await submit({Origin:'null','Sec-Fetch-Site':'same-origin','Sec-Fetch-Mode':'navigate'});
+  assert.equal(browser.status,303);assert.equal(browser.headers.get('location'),'/admin/password');
+  // Outro site não passa, mesmo forjando o cabeçalho Origin esperado.
+  const cross=await submit({Origin:'https://youtubeapi.bibliafoco.com.br','Sec-Fetch-Site':'cross-site'});
+  assert.equal(cross.status,403);
+  // Cliente sem Sec-Fetch-Site continua obrigado a apresentar a origem exata.
+  assert.equal((await submit({})).status,403);
+  assert.equal((await submit({Origin:'https://outro.example'})).status,403);
+ } finally {server.closeAllConnections();await new Promise(r=>server.close(r));database.close();}
+});

@@ -15,16 +15,24 @@ function createAuthRoutes(store, origin) {
   const form = (action, csrf, body, label) => `<form method="post" action="${action}"><input type="hidden" name="csrf" value="${escape(csrf)}">${body}<button>${label}</button></form>`;
   const csrf = req => req.user?.csrf;
   router.use((req,res,next) => {
-    res.set({'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'none'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"});
+    res.set({'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','Content-Security-Policy':"default-src 'none'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"});
     next();
   });
   router.get('/admin/style.css', (req,res) => res.type('css').send('body{margin:0;background:#0f0f0f;color:#fff;font:16px system-ui}main{max-width:1000px;margin:auto;padding:24px}label{display:block;margin:16px 0}input,select,button{font:inherit;padding:12px;border-radius:6px;border:1px solid #777;background:#222;color:white;max-width:100%;box-sizing:border-box}input{display:block;width:100%;margin-top:8px}button{cursor:pointer;min-height:48px}form{margin:20px 0}section{border-top:1px solid #555;margin-top:32px;padding-top:16px}a{color:#a7d7ff}table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:12px;border-bottom:1px solid #555;overflow-wrap:anywhere}.table{overflow:auto}p{line-height:1.6}'));
   router.use(['/admin','/auth'],express.urlencoded({extended:false,limit:'8kb'}));
   router.use(['/admin','/auth'],express.json({limit:'8kb'}));
   router.use(['/admin','/auth'],rateLimit({limit:60}));
-  // Browser mutations must originate from this exact HTTPS origin; mobile uses bearer tokens.
+  // Browser mutations must come from this site; mobile uses bearer tokens.
+  // Sec-Fetch-Site is set by the browser and scripts cannot forge it, so it is the primary
+  // signal. Origin alone fails here: a navigation POST reports `Origin: null` whenever the
+  // page carries a restrictive Referrer-Policy, which blocked every admin form submission.
+  // Clients without Sec-Fetch-Site (non-browser) still have to present the exact Origin.
+  const sameOrigin = req => {
+    const site = req.get('Sec-Fetch-Site');
+    return site ? site === 'same-origin' : req.get('Origin') === origin;
+  };
   router.use('/admin',(req,res,next) => {
-    if(req.method==='POST' && req.get('Origin')!==origin) return res.status(403).send('Origem não autorizada.');
+    if(req.method==='POST' && !sameOrigin(req)) return res.status(403).send('Origem não autorizada.');
     const ips = db.prepare('SELECT ip FROM authorized_ips').all();
     if(ips.length && !ips.some(row=>row.ip===req.ip)) return res.status(403).send('IP não autorizado para o painel.');
     next();
