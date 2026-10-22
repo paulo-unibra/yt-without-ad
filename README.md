@@ -315,3 +315,11 @@ A camada de carregamento do próprio app também mostra a logo no Expo Go e na w
 Na tela do vídeo, abra **Temporizador de sono** e escolha 15, 30, 60 ou 90 minutos, ou informe de 1 a 720 minutos. É possível alterar ou cancelar a contagem. O prazo continua ao navegar, minimizar, pausar ou trocar de vídeo; o mini player mostra o tempo restante. Ao expirar, a sessão é encerrada, parando também a reprodução automática. Fechar o player cancela o temporizador.
 
 A contagem usa um horário absoluto e confere o prazo ao retornar do segundo plano. Como o temporizador é executado em JavaScript, o sistema pode atrasar a parada se suspender o app; a precisão com tela bloqueada precisa ser validada no APK instalado.
+
+### Autenticação e administração
+
+O aplicativo exige login; contas são criadas exclusivamente em `/admin` no domínio da API. A biblioteca permanece compartilhada entre usuários autorizados. Senhas temporárias exigem troca antes de acessar dados. Novas senhas têm 12 a 128 caracteres. O painel usa cookie HTTPS HttpOnly/SameSite, verificação de origem e CSRF; o app usa token aleatório guardado em SecureStore (na web, apenas em memória). Sessões do painel expiram em 8 horas e do app em 7 dias. Trocar a senha ou bloquear a conta revoga as sessões.
+
+O painel permite criar administradores e usuários do aplicativo, bloquear contas, consultar os últimos 100 eventos de auditoria e restringir os IPs de acesso **ao painel**. Lista vazia não restringe IPs; credenciais continuam obrigatórias. Para evitar bloqueio acidental, a primeira autorização deve ser o IP atual. IPs de operadoras podem mudar. Em caso de perda de acesso, a recuperação é feita pelo administrador do servidor via SSH e banco, nunca por endpoint público.
+
+Inicialização única: `DATABASE_PATH=/caminho/library.sqlite node backend/bootstrap-admin.js`, com JSON contendo `email` e `password` pela entrada padrão. Não informe segredos em argumentos, Git ou logs. O comando se recusa a executar se já houver usuários. O banco e os backups passam a conter hashes de credenciais e devem manter acesso restrito. O deploy exige um novo APK para uso das rotas autenticadas; versões anteriores deixam de acessar a API.

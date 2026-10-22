@@ -1,6 +1,8 @@
+import AuthGate from '../components/AuthGate';
 import { Stack, usePathname } from 'expo-router';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { View, TouchableOpacity, Text } from 'react-native';
+import { logout } from '../services/auth';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PlaybackSessionProvider, usePlaybackSession } from '../contexts/playback-session';
 import PersistentPlayer from '../components/PersistentPlayer';
@@ -13,11 +15,12 @@ import { StartupProvider, useCompleteStartup } from '../contexts/startup';
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 export default function RootLayout() {
-  useEffect(() => { void migrateSavedLibrary(); }, []);
-  return <SafeAreaProvider><StartupProvider><PlaybackSessionProvider><RootNavigation /></PlaybackSessionProvider></StartupProvider></SafeAreaProvider>;
+
+  return <SafeAreaProvider><AuthGate><StartupProvider><PlaybackSessionProvider><RootNavigation /></PlaybackSessionProvider></StartupProvider></AuthGate></SafeAreaProvider>;
 }
 
 function RootNavigation() {
+  useEffect(() => { void migrateSavedLibrary(); }, []);
   const pathname = usePathname();
   const completeStartup = useCompleteStartup();
   useEffect(() => { if (pathname !== '/') completeStartup(); }, [pathname, completeStartup]);
@@ -33,6 +36,7 @@ function RootNavigation() {
               backgroundColor: '#0F0F0F',
             },
             headerTintColor: '#FFFFFF',
+            headerRight: () => <TouchableOpacity onPress={() => { void logout(); }} accessibilityRole="button" style={{ padding: 12 }}><Text style={{ color: "#FFFFFF" }}>Sair</Text></TouchableOpacity>,
             headerTitleStyle: {
               fontWeight: 'bold',
             },

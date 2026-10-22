@@ -1,3 +1,4 @@
+import { authHeaders } from './auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getBackendUrl } from '../constants/backend';
 import { DatabaseStorage } from '../utils/database-storage';
@@ -19,7 +20,7 @@ async function request(key: string, value?: unknown, revision?: number) {
   try {
     response = await fetch(`${backend}/api/library/${encodeURIComponent(key)}`, {
       method: revision === undefined ? 'GET' : 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
       body: revision === undefined ? undefined : JSON.stringify({ value, revision }),
       signal: AbortSignal.timeout(10000),
     });

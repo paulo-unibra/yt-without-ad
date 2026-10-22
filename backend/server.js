@@ -8,13 +8,22 @@ const { resolve } = require('node:path');
 const { LibraryDatabase } = require('./library-database');
 const { createLibraryRouter } = require('./library-routes');
 const { rateLimit } = require('./rate-limit');
+const { AuthStore } = require('./auth-store');
+const { createAuthRoutes } = require('./auth-routes');
 
-function createApp({ getVideoInfo = extractVideoInfo, getDownloadInfo = (id, options) => extractVideoInfo(id, { ...options, forDownload: true }), fetchMedia, idleTimeoutMs, database } = {}) {
+function createApp({ getVideoInfo = extractVideoInfo, getDownloadInfo = (id, options) => extractVideoInfo(id, { ...options, forDownload: true }), fetchMedia, idleTimeoutMs, database, authStore } = {}) {
   const app = express();
   const downloads = createDownloadRelay({ getDownloadInfo, fetchMedia, idleTimeoutMs });
-  app.use(cors());
+  app.use(cors({ origin: false }));
   app.disable('x-powered-by');
   if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 'loopback');
+  if (authStore) {
+    const auth = createAuthRoutes(authStore, process.env.PUBLIC_ORIGIN || 'https://youtubeapi.bibliafoco.com.br');
+    app.use(auth.router);
+    app.use('/api', auth.requireApi);
+  } else if (process.env.NODE_ENV === 'production') {
+    throw new Error('Autenticação obrigatória em produção.');
+  }
   app.use('/api', rateLimit());
   app.use(express.json({ limit: '2mb' }));
   if (database) app.use('/api/library', createLibraryRouter(database));
@@ -125,7 +134,8 @@ function startServer() {
   }
 
   const database = new LibraryDatabase(process.env.DATABASE_PATH || resolve(__dirname, 'data/library.sqlite'));
-  const server = createApp({ database }).listen(port, process.env.HOST || '0.0.0.0', () => {
+  const authStore = new AuthStore(database.db);
+  const server = createApp({ database, authStore }).listen(port, process.env.HOST || '0.0.0.0', () => {
     console.log(`🚀 YT Stream Backend running on http://localhost:${port}`);
     const addresses = Object.values(networkInterfaces()).flat()
       .filter((address) => address && address.family === 'IPv4' && !address.internal)

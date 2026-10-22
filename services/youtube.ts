@@ -1,3 +1,4 @@
+import { authHeaders } from './auth';
 import axios from "axios";
 import { Platform } from "react-native";
 import { YOUTUBE_API_BASE_URL, YOUTUBE_API_KEY } from "../constants/youtube";
@@ -178,9 +179,10 @@ export class YouTubeService {
     }
     logDownload('app', videoId, downloadId, 'solicitando_preparacao', { backendHost: new URL(backendUrl).host, audioFormat: Platform.OS === 'ios' ? 'm4a' : 'best', timeoutMs: 35000 });
     try {
-      const { data } = await axios.get(`${backendUrl}/api/download-source/${videoId}`, { signal, timeout: 35000, headers: downloadId ? { 'X-Download-Id': downloadId } : undefined, params: { audioFormat: Platform.OS === 'ios' ? 'm4a' : 'best' } });
+      const { data } = await axios.get(`${backendUrl}/api/download-source/${videoId}`, { signal, timeout: 35000, headers: { ...authHeaders(), ...(downloadId ? { 'X-Download-Id': downloadId } : {}) }, params: { audioFormat: Platform.OS === 'ios' ? 'm4a' : 'best' } });
       logDownload('app', videoId, downloadId, 'preparacao_recebida', { success: data.success, container: data.container, audioBitrate: data.audioBitrate, fileSize: data.fileSize });
-      return appDownloadSource(backendUrl, videoId, data);
+      const source = appDownloadSource(backendUrl, videoId, data);
+      return { ...source, headers: { ...source.headers, ...authHeaders() } };
     } catch (error) {
       logDownload('app', videoId, downloadId, signal.aborted ? 'preparacao_cancelada' : 'preparacao_falhou', downloadErrorDetails(error), signal.aborted ? 'info' : 'error');
       if (signal.aborted) throw error;
@@ -200,6 +202,7 @@ export class YouTubeService {
     if (backendUrl) {
       try {
         const response = await axios.get(`${backendUrl}/api/stream/${videoId}`, {
+          headers: authHeaders(),
           // O backend limita a extração a 30s; 5s interrompia pedidos válidos.
           timeout: 35000,
           signal,
