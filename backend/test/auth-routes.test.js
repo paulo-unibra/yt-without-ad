@@ -60,3 +60,34 @@ test('formulário do admin aceita envio do próprio site e recusa origem externa
   assert.equal((await submit({Origin:'https://outro.example'})).status,403);
  } finally {server.closeAllConnections();await new Promise(r=>server.close(r));database.close();}
 });
+// Sem isto, qualquer recusa de validação virava um JSON genérico de erro 500 na tela.
+test('recusas de preenchimento explicam o motivo em vez de falha genérica', async () => {
+ const database=new LibraryDatabase(':memory:');const store=new AuthStore(database.db);
+ const id=await store.createUser('admin@example.test','temporary password 123','admin');
+ const member=await store.createUser('member@example.test','temporary password 123');
+ database.db.prepare('UPDATE auth_users SET must_change=0 WHERE id=?').run(id);
+ const server=createApp({database,authStore:store}).listen(0,'127.0.0.1');await once(server,'listening');
+ const base=`http://127.0.0.1:${server.address().port}`;
+ const session=store.session(id,'admin');
+ const send=(path,body)=>fetch(base+path,{method:'POST',redirect:'manual',
+  headers:{'Content-Type':'application/x-www-form-urlencoded','Sec-Fetch-Site':'same-origin',
+   Cookie:`__Host-yt-admin=${session.token}`},
+  body:new URLSearchParams({csrf:session.csrf,...body})});
+ const expect=async(response,pattern)=>{assert.equal(response.status,400);assert.match(await response.text(),pattern);};
+ try {
+  await expect(await send('/admin/password',{current:'temporary password 123',password:'curta'}),/Use uma senha de 12 a 128 caracteres/);
+  await expect(await send('/admin/password',{current:'senha que nao confere',password:'brand new password 789'}),/Senha atual incorreta/);
+  await expect(await send('/admin/password',{current:'temporary password 123',password:'temporary password 123'}),/Escolha uma senha diferente/);
+  await expect(await send('/admin/users',{email:'member@example.test',password:'another password 456',role:'member'}),/já está cadastrado/);
+  await expect(await send('/admin/users',{email:'sem-arroba',password:'another password 456',role:'member'}),/Usuário inválido/);
+  // O aplicativo recebe o mesmo motivo em JSON.
+  const app=store.session(member,'app');
+  const json=await fetch(base+'/auth/password',{method:'POST',
+   headers:{'Content-Type':'application/json',Authorization:`Bearer ${app.token}`},
+   body:JSON.stringify({current:'temporary password 123',password:'curta'})});
+  assert.equal(json.status,400);
+  assert.deepEqual(await json.json(),{error:'Use uma senha de 12 a 128 caracteres.'});
+  // A senha continua intacta após todas as recusas.
+  assert.equal(database.db.prepare('SELECT must_change FROM auth_users WHERE id=?').get(member).must_change,1);
+ } finally {server.closeAllConnections();await new Promise(r=>server.close(r));database.close();}
+});

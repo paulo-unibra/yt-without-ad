@@ -102,6 +102,16 @@ function createAuthRoutes(store, origin) {
     res.once('finish',()=>{if(req.method!=='GET'||res.statusCode>=400) store.audit(req.user.id,`api_${req.method}_${res.statusCode}`,req.ip,req.path);});
     next();
   }
+  // Erros de preenchimento voltam legíveis para quem enviou o formulário; o resto segue
+  // para o tratamento genérico, que não revela detalhes internos.
+  router.use((error,req,res,next) => {
+    if(res.headersSent || !error.expose) return next(error);
+    const status = error.status || 400;
+    if(!req.path.startsWith('/admin')) return res.status(status).json({error:error.message});
+    const back = req.path==='/admin/password' ? '/admin/password' : '/admin';
+    res.status(status);
+    page(res,'Não foi possível salvar',`<p>${escape(error.message)}</p><p><a href="${back}">Voltar e tentar novamente</a></p>`);
+  });
   return {router,requireApi};
 }
 module.exports={createAuthRoutes};

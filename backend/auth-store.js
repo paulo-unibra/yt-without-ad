@@ -3,8 +3,10 @@ const { promisify } = require('node:util');
 const scrypt = promisify(derive);
 const digest = token => createHash('sha256').update(token).digest('hex');
 const options = { N: 32768, r: 8, p: 3, maxmem: 64 * 1024 * 1024 };
+// Falhas previsíveis de preenchimento, seguras para mostrar a quem está operando o painel.
+const invalid = message => Object.assign(new Error(message), { expose: true, status: 400 });
 async function hashPassword(password) {
-  if (typeof password !== 'string' || password.length < 12 || password.length > 128) throw new Error('Use uma senha de 12 a 128 caracteres.');
+  if (typeof password !== 'string' || password.length < 12 || password.length > 128) throw invalid('Use uma senha de 12 a 128 caracteres.');
   const salt = randomBytes(16).toString('hex');
   const key = await scrypt(password, salt, 64, options);
   return `${salt}:${key.toString('hex')}`;
@@ -37,9 +39,13 @@ class AuthStore {
   }
   async createUser(email, password, role = 'member') {
     email = String(email).trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || !['admin','member'].includes(role)) throw new Error('Usuário inválido.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || !['admin','member'].includes(role)) throw invalid('Usuário inválido.');
     const hash = await hashPassword(password);
-    return Number(this.db.prepare('INSERT INTO auth_users(email,password_hash,role) VALUES(?,?,?)').run(email, hash, role).lastInsertRowid);
+    try {
+      return Number(this.db.prepare('INSERT INTO auth_users(email,password_hash,role) VALUES(?,?,?)').run(email, hash, role).lastInsertRowid);
+    } catch (error) {
+      throw /UNIQUE/i.test(error.message) ? invalid('Este e-mail já está cadastrado.') : error;
+    }
   }
   session(userId, kind) {
     const token = randomBytes(32).toString('base64url');
@@ -58,8 +64,8 @@ class AuthStore {
   revoke(token) { this.db.prepare('DELETE FROM auth_sessions WHERE token_hash=?').run(digest(token)); }
   async changePassword(userId, current, password) {
     const user = this.db.prepare('SELECT * FROM auth_users WHERE id=? AND disabled=0').get(userId);
-    if (!user || !await verifyPassword(current, user.password_hash)) throw new Error('Senha atual incorreta.');
-    if (await verifyPassword(password, user.password_hash)) throw new Error('Escolha uma senha diferente.');
+    if (!user || !await verifyPassword(current, user.password_hash)) throw invalid('Senha atual incorreta.');
+    if (await verifyPassword(password, user.password_hash)) throw invalid('Escolha uma senha diferente da atual.');
     const hash = await hashPassword(password);
     this.db.exec('BEGIN IMMEDIATE');
     try {
